@@ -23,6 +23,7 @@ Session = sessionmaker()
 
 if not os.path.isfile(db_file):
     logging.info (f"New database file created: {db_file}")
+    Path(os.path.dirname(db_file)).mkdir(parents=True, exist_ok=True)
 
 db_engine = create_engine(f"sqlite:///{db_file}") # echo=True
 Base.metadata.create_all(db_engine)
