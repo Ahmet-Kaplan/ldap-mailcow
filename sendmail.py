@@ -3,10 +3,14 @@ from smtplib import SMTPException
 from email.message import EmailMessage
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import syslog
 syslog.openlog(ident="Ldap-Mailcow",logoption=syslog.LOG_PID, facility=syslog.LOG_LOCAL0)
 
-def get_email_server(config):
+def get_email_server():
     """Creates an instance of email server.
     Returns:
         server -- SMTP instance
@@ -26,16 +30,16 @@ def get_email_server(config):
         if str(os.getenv('MAIL_AUTH')):
             server.login(str(os.getenv('MAIL_AUTH_USERNAME')), str(os.getenv('MAIL_AUTH_PASSWD')))
 
-    except Error:
-        print(Error)
+    except:
+        syslog.syslog (syslog.LOG_ERR, f"An error occurred while sending mail.")
         server.quit()
         return False
 
     return server
 
 
-def send_email( text):
-    server = get_email_server(config)
+def send_email(text):
+    server = get_email_server()
     if not server:
         syslog.syslog (syslog.LOG_ERR, f"Can't create mail server instance...")
         return False

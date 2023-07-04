@@ -5,7 +5,8 @@ RUN apk --no-cache add build-base openldap-dev python3-dev
 RUN pip3 install python-ldap sqlalchemy requests environs sendmail
 
 COPY templates ./templates
-COPY api.py filedb.py syncer.py ./
+COPY api.py filedb.py syncer.py sendmail.py ./
+COPY .env ./
 
 VOLUME [ "/db" ]
 VOLUME [ "/conf/dovecot" ]

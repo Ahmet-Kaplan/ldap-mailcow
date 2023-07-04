@@ -73,7 +73,7 @@ def sync():
             os.getenv('LDAP_BIND_DN'), os.getenv('LDAP_BIND_DN_PASSWORD'))
     except:
         syslog.syslog (syslog.LOG_ERR, f"Can't connect to LDAP server {uri}, skipping this sync...")
-        if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"Can't connect to LDAP server {uri}, skipping this sync...")
+        if os.getenv('MAIL_ACTIVE'): sendmail.send_email(f"Can't connect to LDAP server {uri}, skipping this sync...")
         return
 
     ldap_results = ldap_connector.search_s(os.getenv('LDAP_BASE_DN'), ldap.SCOPE_SUBTREE,
