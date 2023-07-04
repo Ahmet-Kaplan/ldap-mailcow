@@ -35,7 +35,7 @@ def main():
 
     if passdb_conf_changed or extra_conf_changed or plist_ldap_changed:
         syslog.syslog(syslog.LOG_INFO, f"One or more config files have been changed, please make sure to restart dovecot-mailcow and sogo-mailcow!")
-        if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, f"One or more config files have been changed, please make sure to restart dovecot-mailcow and sogo-mailcow!")
+        if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"One or more config files have been changed, please make sure to restart dovecot-mailcow and sogo-mailcow!")
 
     while (True):
         sync()
@@ -56,7 +56,7 @@ def sync():
 
     if api_status != True:
         syslog.syslog(syslog.LOG_INFO, f"mailcow is not fully up, skipping this sync...")
-        if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, f"mailcow is not fully up, skipping this sync...")
+        if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"mailcow is not fully up, skipping this sync...")
         return
 
     try:
@@ -73,7 +73,7 @@ def sync():
             os.getenv('LDAP_BIND_DN'), os.getenv('LDAP_BIND_DN_PASSWORD'))
     except:
         syslog.syslog (syslog.LOG_ERR, f"Can't connect to LDAP server {uri}, skipping this sync...")
-        if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, f"Can't connect to LDAP server {uri}, skipping this sync...")
+        if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"Can't connect to LDAP server {uri}, skipping this sync...")
         return
 
     ldap_results = ldap_connector.search_s(os.getenv('LDAP_BASE_DN'), ldap.SCOPE_SUBTREE,
@@ -92,11 +92,11 @@ def sync():
     if not rsp_code:
         if not rsp_data:
             syslog.syslog (syslog.LOG_ERR, f"Error retreiving data from Mailcow.")
-            if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, f"Error retreiving data from Mailcow.")
+            if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"Error retreiving data from Mailcow.")
             return
         else:
             syslog.syslog (syslog.LOG_ERR, rsp_data)
-            if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, rsp_data)
+            if os.getenv('MAIL_ACTIVE'): sendmail.send_email( rsp_data)
             return
 
     api_data = {}
@@ -115,7 +115,7 @@ def sync():
             syslog.syslog(syslog.LOG_INFO, f"Working on {mail}")
         except:
             syslog.syslog (syslog.LOG_ERR, f"An error occurred while iterating through the LDAP users.")
-            if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, f"An error occurred while iterating through the LDAP users.")
+            if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"An error occurred while iterating through the LDAP users.")
             return
 
         ldap_email = ldap_item[0]
@@ -146,16 +146,16 @@ def sync():
 
         if not api_user_exists:
             domain = ldap_email.split('@')[1]
-            if (not api.domain_exists(config, domain)):
+            if (not api.domain_exists( domain)):
                 syslog.syslog (syslog.LOG_ERR, f"Error: Domain {domain} doesn't exist for email {ldap_email}")
-                if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, f"Error: Domain {domain} doesn't exist for email {ldap_email}")
+                if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"Error: Domain {domain} doesn't exist for email {ldap_email}")
                 continue
             else:
-                rsp_code, rsp_data = api.add_user(config, ldap_email, ldap_name, ldap_active, ldap_quota)
+                rsp_code, rsp_data = api.add_user( ldap_email, ldap_name, ldap_active, ldap_quota)
 
                 if not rsp_code:
                     syslog.syslog (syslog.LOG_ERR, rsp_data)
-                    if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, rsp_data)
+                    if os.getenv('MAIL_ACTIVE'): sendmail.send_email( rsp_data)
                     continue
 
                 (api_user_exists, api_user_active, api_name, api_quota) = (True, ldap_active, ldap_name, ldap_quota)
@@ -168,33 +168,33 @@ def sync():
             unchanged = False
 
         if api_user_active != ldap_active:
-            rsp_code, rsp_data = api.edit_user(config, ldap_email, active=ldap_active)
+            rsp_code, rsp_data = api.edit_user( ldap_email, active=ldap_active)
 
             if not rsp_code:
                 syslog.syslog (syslog.LOG_ERR, rsp_data)
-                if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, rsp_data)
+                if os.getenv('MAIL_ACTIVE'): sendmail.send_email( rsp_data)
                 continue
 
             syslog.syslog(syslog.LOG_INFO, f"{'Activated' if ldap_active else 'Deactived'} {ldap_email} in Mailcow")
             unchanged = False
 
         if api_name != ldap_name:
-            rsp_code, rsp_data = api.edit_user(config, ldap_email, name=ldap_name)
+            rsp_code, rsp_data = api.edit_user( ldap_email, name=ldap_name)
 
             if not rsp_code:
                 syslog.syslog (syslog.LOG_ERR, rsp_data)
-                if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, rsp_data)
+                if os.getenv('MAIL_ACTIVE'): sendmail.send_email( rsp_data)
                 continue
 
             syslog.syslog(syslog.LOG_INFO, f"Changed name of {ldap_email} in Mailcow to {ldap_name}")
             unchanged = False
 
         if int(api_quota) != int(ldap_quota):
-            rsp_code, rsp_data = api.edit_user(config, ldap_email, quota=ldap_quota)
+            rsp_code, rsp_data = api.edit_user( ldap_email, quota=ldap_quota)
 
             if not rsp_code:
                 syslog.syslog (syslog.LOG_ERR, rsp_data)
-                if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, rsp_data)
+                if os.getenv('MAIL_ACTIVE'): sendmail.send_email( rsp_data)
                 continue
 
             syslog.syslog(syslog.LOG_INFO, f"Changed quota of {ldap_email} in Mailcow to {ldap_quota}Mo")
@@ -216,11 +216,11 @@ def sync():
             (api_user_exists, api_user_active, api_name, api_quota) = (False, False, None, None)
 
         if (api_user_active):
-            rsp_code, rsp_data = api.edit_user(config, db_email, active=False)
+            rsp_code, rsp_data = api.edit_user( db_email, active=False)
 
             if not rsp_code:
                 syslog.syslog (syslog.LOG_ERR, rsp_data)
-                if os.getenv('MAIL_ACTIVE'): sendmail.send_email(config, rsp_data)
+                if os.getenv('MAIL_ACTIVE'): sendmail.send_email( rsp_data)
                 continue
 
             syslog.syslog(syslog.LOG_INFO, f"Deactivated user {db_email} in Mailcow, not found in LDAP")

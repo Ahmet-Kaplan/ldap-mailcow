@@ -3,6 +3,7 @@ import string
 import sys
 import requests
 import datetime
+import os
 from environs import Env
 
 s = requests.session()
@@ -28,9 +29,9 @@ def get_random_password():
     password = ''.join(password_list)
     return password
 
-def __post_request(config, url, json_data):
-    api_host = config['API_HOST']
-    api_key = config['API_KEY']
+def __post_request( url, json_data):
+    api_host = str(os.getenv('API_HOST'))
+    api_key = str(os.getenv('API_KEY'))
     api_url = f"{api_host}/{url}"
     headers = {'X-API-Key': api_key, 'Content-type': 'application/json'}
 
@@ -61,7 +62,7 @@ def __post_request(config, url, json_data):
     return (True, None)
 
 
-def add_user(config, email, name, active, quotum):
+def add_user( email, name, active, quotum):
     password = get_random_password()
 
     json_data = {
@@ -74,7 +75,7 @@ def add_user(config, email, name, active, quotum):
         "active": 1 if active else 0 # Active: 0 = no incoming mail/no login, 1 = allow both, 2 = custom state: allow incoming mail/no login
     }
 
-    retVal = __post_request(config, 'api/v1/add/mailbox', json_data)
+    retVal = __post_request( 'api/v1/add/mailbox', json_data)
 
     if not retVal[0]:
         ret_msg = retVal[1]
@@ -101,7 +102,7 @@ def add_user(config, email, name, active, quotum):
         }
     }
 
-    retVal = __post_request(config, 'api/v1/edit/user-acl', json_data)
+    retVal = __post_request( 'api/v1/edit/user-acl', json_data)
 
     if not retVal[0]:   
         ret_msg = retVal[1]
@@ -109,10 +110,10 @@ def add_user(config, email, name, active, quotum):
 
     return (True, None)
 
-def edit_user(config, email, active=None, name=None, quota=None):
+def edit_user( email, active=None, name=None, quota=None):
     attr = {}
     if (active is not None):
-        attr['active'] = 1 if active else config['MAILCOW_INACTIVE']
+        attr['active'] = 1 if active else os.getenv('MAILCOW_INACTIVE')
         # Active: 0 = no incoming mail/no login, 1 = allow both, 2 = custom state: allow incoming mail/no login
     if (name is not None):
         attr['name'] = name
@@ -124,7 +125,7 @@ def edit_user(config, email, active=None, name=None, quota=None):
         'attr': attr
     }
 
-    retVal = __post_request(config, 'api/v1/edit/mailbox', json_data)
+    retVal = __post_request( 'api/v1/edit/mailbox', json_data)
 
     if not retVal[0]:
         ret_msg = retVal[1]
@@ -132,9 +133,9 @@ def edit_user(config, email, active=None, name=None, quota=None):
 
     return (True, None)
 
-def check_user(config, email):
-    api_host = config['API_HOST']
-    api_key = config['API_KEY']
+def check_user( email):
+    api_host = str(os.getenv('API_HOST'))
+    api_key = str(os.getenv('API_KEY'))
     url = f"{api_host}/api/v1/get/mailbox/{email}"
     headers = {'X-API-Key': api_key, 'Content-type': 'application/json'}
     req = s.get(url, headers=headers, verify=False)
@@ -164,8 +165,8 @@ def check_user(config, email):
 
 
 def check_api(config):
-    api_host = config['API_HOST']
-    api_key = config['API_KEY']
+    api_host = str(os.getenv('API_HOST'))
+    api_key = str(os.getenv('API_KEY'))
     api_url = f"{api_host}/api/v1/get/status/containers"
     headers = {'X-API-Key': api_key, 'Content-type': 'application/json'}
 
@@ -175,9 +176,9 @@ def check_api(config):
         return True
     return False
 
-def domain_exists(config, domain):
-    api_host = config['API_HOST']
-    api_key = config['API_KEY']
+def domain_exists( domain):
+    api_host = str(os.getenv('API_HOST'))
+    api_key = str(os.getenv('API_KEY'))
     url = f"{api_host}/api/v1/get/domain/{domain}"
     headers = {'X-API-Key': api_key, 'Content-type': 'application/json'}
     rsp = s.get(url, headers=headers).json()
@@ -188,8 +189,8 @@ def domain_exists(config, domain):
         return False
 
 def check_mailbox_all(config):
-    api_host = config['API_HOST']
-    api_key = config['API_KEY']
+    api_host = str(os.getenv('API_HOST'))
+    api_key = str(os.getenv('API_KEY'))
     url = f"{api_host}/api/v1/get/mailbox/all"
     headers = {'X-API-Key': api_key, 'Content-type': 'application/json'}
     req = s.get(url, headers=headers)
