@@ -4,7 +4,10 @@ import sys
 import requests
 import datetime
 import os
-from environs import Env
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 s = requests.session()
 
