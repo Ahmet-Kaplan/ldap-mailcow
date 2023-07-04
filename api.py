@@ -164,7 +164,7 @@ def check_user( email):
     return (True, active_int, rsp['name'], quota, None)
 
 
-def check_api(config):
+def check_api():
     api_host = str(os.getenv('API_HOST'))
     api_key = str(os.getenv('API_KEY'))
     api_url = f"{api_host}/api/v1/get/status/containers"
