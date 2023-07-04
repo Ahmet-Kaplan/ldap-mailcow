@@ -2,7 +2,7 @@
 FROM python:3-alpine
 
 RUN apk --no-cache add build-base openldap-dev python3-dev
-RUN pip3 install python-ldap sqlalchemy requests
+RUN pip3 install python-ldap sqlalchemy requests environs sendmail
 
 COPY templates ./templates
 COPY api.py filedb.py syncer.py ./

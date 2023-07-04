@@ -52,7 +52,7 @@ def str_to_bool(s):
          raise ValueError # evil ValueError that doesn't tell you what the wrong value was
 
 def sync():
-    api_status = api.check_api(config)
+    api_status = api.check_api()
 
     if api_status != True:
         syslog.syslog(syslog.LOG_INFO, f"mailcow is not fully up, skipping this sync...")
@@ -61,11 +61,11 @@ def sync():
 
     try:
         if os.getenv('LDAP_URL_TYPE') == 'TLS':
-            uri="ldap://" + os.getenv('LDAP_URL') + ":" + os.getenv('LDAP_URL_PORT') + "/????!StartTLS"
+            uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT')) + "/????!StartTLS"
         elif os.getenv('LDAP_URL_TYPE') == 'SSL':
-            uri="ldaps://" + os.getenv('LDAP_URL') + ":" + os.getenv('LDAP_URL_PORT')
+            uri="ldaps://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
         else:
-            uri="ldap://" + os.getenv('LDAP_URL') + ":" + os.getenv('LDAP_URL_PORT')
+            uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
 
         ldap_connector = ldap.initialize(f"{uri}")
         ldap_connector.set_option(ldap.OPT_REFERRALS, 0)
@@ -260,16 +260,16 @@ def read_dovecot_passdb_conf_template():
         data = Template(f.read())
 
     if os.getenv('LDAP_URL_TYPE') == 'TLS':
-        uri="ldap://" + os.getenv('LDAP_URL') + ":" + os.getenv('LDAP_URL_PORT')
+        uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
         tls="tls = yes"
     elif os.getenv('LDAP_URL_TYPE') == 'SSL':
-        uri="ldaps://" + os.getenv('LDAP_URL') + ":" + os.getenv('LDAP_URL_PORT')
+        uri="ldaps://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
         tls=''
     else:
-        uri="ldap://" + os.getenv('LDAP_URL') + ":" + os.getenv('LDAP_URL_PORT')
+        uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
         tls=''
 
-    ldap_filter_tmp = os.getenv('LDAP_FILTER')[1:-1]
+    ldap_filter_tmp = str(os.getenv('LDAP_FILTER'))[1:-1]
 
     return data.substitute(
         ldap_uri=uri,
@@ -287,11 +287,11 @@ def read_sogo_plist_ldap_template():
         data = Template(f.read())
 
     if os.getenv('LDAP_URL_TYPE') == 'TLS':
-        uri="ldap://" + os.getenv('LDAP_URL') + ":" + os.getenv('LDAP_URL_PORT') + "/????!StartTLS"
+        uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT')) + "/????!StartTLS"
     elif os.getenv('LDAP_URL_TYPE') == 'SSL':
-        uri="ldaps://" + os.getenv('LDAP_URL') + ":" + os.getenv('LDAP_URL_PORT')
+        uri="ldaps://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
     else:
-        uri="ldap://" + os.getenv('LDAP_URL') + ":" + os.getenv('LDAP_URL_PORT')
+        uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
 
     return data.substitute(
         ldap_uri=uri,
