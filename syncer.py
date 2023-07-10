@@ -93,6 +93,8 @@ def sync():
                                            str(os.getenv('LDAP_FILTER')),
                                            [str(os.getenv('LDAP_UIDFieldName')), str(os.getenv('LDAP_CNFieldName')), str(os.getenv('LDAP_active')), str(os.getenv('LDAP_mailQuota'))])
 
+    logging.info(f"LDAP Search Results:" + ldap_results)
+
     ldap_results = map(lambda x: (
           x[1][str(os.getenv('LDAP_UIDFieldName'))][0].decode(),
           x[1][str(os.getenv('LDAP_CNFieldName'))][0].decode(),
