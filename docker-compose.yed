@@ -6,17 +6,17 @@ volumes:
   openldap-data:
 
 networks:
-  internal:
-    name: ldapnet
+  openldap-net:
+    name: openldap-net
+    driver: bridge
+  web:
     external: true
 
 services:
   ldap-mailcow:
     image: kaplan38/openldap-mailcow
     build: . 
-#    network_mode: host
-    networks:
-      - internal
+    network_mode: host
     container_name: ldap-mailcow
     volumes:
         - ./data/ldap:/db:rw
@@ -34,15 +34,12 @@ services:
         #- LDAP-MAILCOW_SOGO_LDAP_FILTER=objectClass='posixAaccount'
         - LDAP-MAILCOW_LDAP_FILTER=(&(objectClass=inetOrgPerson))
         - LDAP-MAILCOW_SOGO_LDAP_FILTER=objectClass='inetOrgPerson'
-
   ldap-account-manager:
-    image: ghcr.io/ldapaccountmanager/lam:latest
+    image: ldapaccountmanager/lam:latest
     restart: unless-stopped
     volumes:
-      - lam-data:/var/lib/ldap-account-manager/
-      - lam-app:/etc/ldap-account-manager
-    networks:
-      - internal
+    - lam-data:/var/lib/ldap-account-manager/
+    - lam-app:/etc/ldap-account-manager
     environment:
       # - LAM_PASSWORD=${LAM_PASSWORD}
       # - LAM_LANG=${LAM_LANG}
@@ -55,28 +52,51 @@ services:
       - LDAP_SERVER=${LDAP_URL}
       - LDAP_DOMAIN=${LDAP_DOMAIN}
       - LDAP_BASE_DN=${LDAP_BASE_DN}
-      - DEBUG=true
-    ports:
-      - '80:80'
-    hostname: users
+      # - ADMIN_USER=cn=admin,${LDAP_BASE_DN}
+      # - DEBUG=true
+    # hostname: directory
     # domainname: "${LDAP_DOMAIN}"
-    container_name: ldap-users
+    container_name: ldap-dir
+    networks:
+      - openldap-net
+      - web
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=web
+      - traefik.http.routers.openldap-lam.rule=Host(`directory.${LDAP_DOMAIN}`)
+      - traefik.http.routers.openldap-lam.entrypoints=websecure
+      - traefik.http.routers.openldap-lam.tls=true
+      - traefik.http.routers.openldap-lam.tls.certresolver=myresolver
+      - traefik.http.routers.openldap-lam.service=openldap-lam-svc
+      - traefik.http.services.openldap-lam-svc.loadbalancer.server.port=80
+      - traefik.http.routers.openldap-lam.middlewares=ldap-auth
+      - traefik.http.middlewares.ldap-auth.basicauth.users=adam:$$2y$$05$$aio7rx3j9w87ky2uw9r
 
   # Bitnami OpenLDAP container (actively maintained)
   ldap:
     image: bitnami/openldap:latest
     restart: unless-stopped
     container_name: openldap
-    networks:
-      - internal
     # hostname: directory
     # domainname: "${LDAP_DOMAIN}"
     ports:
-      - '1389:1389' # Expose port 389
+      - '389:1389' # Expose port 389
     #   - '1636:1636'
+    networks:
+      - openldap-net
+      - web
     volumes:
       - openldap-data:/bitnami/openldap
       - ./ldap/schemas:/schemas # Additional LDIF schemas
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=web
+      - traefik.http.routers.ldap.rule=Host(`ldap.${LDAP_DOMAIN}`)
+      - traefik.http.routers.ldap.tls=true
+      - traefik.http.routers.ldap.tls.certresolver=myresolver
+      - traefik.http.routers.ldap.entrypoints=ldap
+      - traefik.http.routers.ldap.service=ldap-svc
+      - traefik.http.services.ldap-svc.loadbalancer.server.port=1389
     environment:
       - LDAP_ADMIN_USERNAME=${LDAP_ADMIN_NAME}
       - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD}

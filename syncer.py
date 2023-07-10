@@ -19,6 +19,10 @@ import syslog
 syslog.openlog(ident="Ldap-Mailcow",logoption=syslog.LOG_PID, facility=syslog.LOG_LOCAL0)
 syslog.syslog(syslog.LOG_INFO, 'Démarrage du cron ldap-mailcow...')
 
+import logging
+logging.basicConfig(format='%(asctime)s %(message)s',
+                    datefmt='%d.%m.%y %H:%M:%S', level=logging.INFO)
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -37,9 +41,13 @@ def main():
         syslog.syslog(syslog.LOG_INFO, f"One or more config files have been changed, please make sure to restart dovecot-mailcow and sogo-mailcow!")
         if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"One or more config files have been changed, please make sure to restart dovecot-mailcow and sogo-mailcow!")
 
+    logging.info(
+            f"Sync started")
     while (True):
         sync()
         interval = int(os.getenv('SYNC_INTERVAL'))
+        logging.info(
+            f"Sync finished, sleeping {interval} seconds before next cycle")
         syslog.syslog(syslog.LOG_INFO, f"Sync finished, sleeping {interval} seconds before next cycle")
         time.sleep(interval)
 
@@ -56,45 +64,53 @@ def sync():
 
     if api_status != True:
         syslog.syslog(syslog.LOG_INFO, f"mailcow is not fully up, skipping this sync...")
-        if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"mailcow is not fully up, skipping this sync...")
-        return
+#        if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"mailcow is not fully up, skipping this sync...")
+#        return
 
     try:
         if os.getenv('LDAP_URL_TYPE') == 'TLS':
-            uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT')) + "/????!StartTLS"
+            uri="ldap://" + str(os.getenv('LDAP_SERVER')) + ":" + str(os.getenv('LDAP_URL_PORT')) + "/????!StartTLS"
         elif os.getenv('LDAP_URL_TYPE') == 'SSL':
-            uri="ldaps://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
+            uri="ldaps://" + str(os.getenv('LDAP_SERVER')) + ":" + str(os.getenv('LDAP_URL_PORT'))
         else:
-            uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
+            uri="ldap://" + str(os.getenv('LDAP_SERVER')) + ":" + str(os.getenv('LDAP_URL_PORT'))
 
         ldap_connector = ldap.initialize(f"{uri}")
+        logging.info(f"Connected to LDAP server {uri}") 
+        ldap.protocol_version = 3
         ldap_connector.set_option(ldap.OPT_REFERRALS, 0)
+        logging.info(f"setoption")
         ldap_connector.simple_bind_s(
-            os.getenv('LDAP_BIND_DN'), os.getenv('LDAP_BIND_DN_PASSWORD'))
-    except:
+            str(os.getenv('LDAP_BIND_DN')), str(os.getenv('LDAP_BIND_DN_PASSWORD')))
+        logging.info(f"Bind to LDAP server {uri}")
+    except Exception as e: # work on python 3.x
+        logging.info(f"Can't connect to LDAP server :" + str(e))
         syslog.syslog (syslog.LOG_ERR, f"Can't connect to LDAP server {uri}, skipping this sync...")
         if os.getenv('MAIL_ACTIVE'): sendmail.send_email(f"Can't connect to LDAP server {uri}, skipping this sync...")
         return
 
-    ldap_results = ldap_connector.search_s(os.getenv('LDAP_BASE_DN'), ldap.SCOPE_SUBTREE,
-                                           os.getenv('LDAP_FILTER'),
-                                           [os.getenv('LDAP_UIDFieldName'), os.getenv('LDAP_CNFieldName'), os.getenv('LDAP_active'), os.getenv('LDAP_mailQuota')])
+    ldap_results = ldap_connector.search_s(str(os.getenv('LDAP_BASE_DN')), ldap.SCOPE_SUBTREE,
+                                           str(os.getenv('LDAP_FILTER')),
+                                           [str(os.getenv('LDAP_UIDFieldName')), str(os.getenv('LDAP_CNFieldName')), str(os.getenv('LDAP_active')), str(os.getenv('LDAP_mailQuota'))])
 
     ldap_results = map(lambda x: (
-          x[1][os.getenv('LDAP_UIDFieldName')][0].decode(),
-          x[1][os.getenv('LDAP_CNFieldName')][0].decode(),
-          False if not str_to_bool(x[1][os.getenv('LDAP_active')][0]) else True,
-          x[1][os.getenv('LDAP_mailQuota')][0].decode()),
+          x[1][str(os.getenv('LDAP_UIDFieldName'))][0].decode(),
+          x[1][str(os.getenv('LDAP_CNFieldName'))][0].decode(),
+          False if not str_to_bool(x[1][str(os.getenv('LDAP_active'))][0]) else True,
+          x[1][str(os.getenv('LDAP_mailQuota'))][0].decode()),
           ldap_results)
 
     # Geet all accounts info from Mailcow in 1 request
-    rsp_code, rsp_data = api.check_mailbox_all(config)
+    rsp_code, rsp_data = api.check_mailbox_all()
     if not rsp_code:
         if not rsp_data:
-            syslog.syslog (syslog.LOG_ERR, f"Error retreiving data from Mailcow.")
+            logging.info(
+            f"Error retrieving data from Mailcow.")
+            syslog.syslog (syslog.LOG_ERR, f"Error retrieving data from Mailcow.")
             if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"Error retreiving data from Mailcow.")
             return
         else:
+            logging.info(rsp_data)
             syslog.syslog (syslog.LOG_ERR, rsp_data)
             if os.getenv('MAIL_ACTIVE'): sendmail.send_email( rsp_data)
             return
@@ -260,13 +276,13 @@ def read_dovecot_passdb_conf_template():
         data = Template(f.read())
 
     if os.getenv('LDAP_URL_TYPE') == 'TLS':
-        uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
+        uri="ldap://" + str(os.getenv('LDAP_SERVER')) + ":" + str(os.getenv('LDAP_URL_PORT'))
         tls="tls = yes"
     elif os.getenv('LDAP_URL_TYPE') == 'SSL':
-        uri="ldaps://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
+        uri="ldaps://" + str(os.getenv('LDAP_SERVER')) + ":" + str(os.getenv('LDAP_URL_PORT'))
         tls=''
     else:
-        uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
+        uri="ldap://" + str(os.getenv('LDAP_SERVER')) + ":" + str(os.getenv('LDAP_URL_PORT'))
         tls=''
 
     ldap_filter_tmp = str(os.getenv('LDAP_FILTER'))[1:-1]
@@ -274,10 +290,10 @@ def read_dovecot_passdb_conf_template():
     return data.substitute(
         ldap_uri=uri,
         ldap_filter=ldap_filter_tmp,
-        ldap_base_dn=os.getenv('LDAP_BASE_DN'),
-        ldap_bind_dn=os.getenv('LDAP_BIND_DN'),
-        ldap_bind_dn_password=os.getenv('LDAP_BIND_DN_PASSWORD'),
-        ldap_uidfieldname=os.getenv('LDAP_UIDFieldName'),
+        ldap_base_dn=str(os.getenv('LDAP_BASE_DN')),
+        ldap_bind_dn=str(os.getenv('LDAP_BIND_DN')),
+        ldap_bind_dn_password=str(os.getenv('LDAP_BIND_DN_PASSWORD')),
+        ldap_uidfieldname=str(os.getenv('LDAP_UIDFieldName')),
         ldap_tls=tls
     )
 
@@ -287,26 +303,26 @@ def read_sogo_plist_ldap_template():
         data = Template(f.read())
 
     if os.getenv('LDAP_URL_TYPE') == 'TLS':
-        uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT')) + "/????!StartTLS"
+        uri="ldap://" + str(os.getenv('LDAP_SERVER')) + ":" + str(os.getenv('LDAP_URL_PORT')) + "/????!StartTLS"
     elif os.getenv('LDAP_URL_TYPE') == 'SSL':
-        uri="ldaps://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
+        uri="ldaps://" + str(os.getenv('LDAP_SERVER')) + ":" + str(os.getenv('LDAP_URL_PORT'))
     else:
-        uri="ldap://" + str(os.getenv('LDAP_URL')) + ":" + str(os.getenv('LDAP_URL_PORT'))
+        uri="ldap://" + str(os.getenv('LDAP_SERVER')) + ":" + str(os.getenv('LDAP_URL_PORT'))
 
     return data.substitute(
         ldap_uri=uri,
-        ldap_base_dn=os.getenv('LDAP_BASE_DN'),
-        ldap_bind_dn=os.getenv('LDAP_BIND_DN'),
-        ldap_bind_dn_password=os.getenv('LDAP_BIND_DN_PASSWORD'),
-        sogo_ldap_filter=os.getenv('SOGO_LDAP_FILTER'),
-        ldap_cnfieldname=os.getenv('LDAP_CNFieldName'),
-        ldap_idfieldname=os.getenv('LDAP_IDFieldName'),
-        ldap_uidfieldname=os.getenv('LDAP_UIDFieldName'),
-        ldap_bindfields=os.getenv('LDAP_bindFields'),
-        ldap_passwordpolicy=os.getenv('LDAP_passwordPolicy'),
-        ldap_isaddressbook=os.getenv('LDAP_isAddressBook'),
-        ldap_abdisplayname=os.getenv('LDAP_abaddressBookName')
-    )
+        ldap_base_dn=str(os.getenv('LDAP_BASE_DN')),
+        ldap_bind_dn=str(os.getenv('LDAP_BIND_DN')),
+        ldap_bind_dn_password=str(os.getenv('LDAP_BIND_DN_PASSWORD')),
+        sogo_ldap_filter=str(os.getenv('SOGO_LDAP_FILTER')),
+        ldap_cnfieldname=str(os.getenv('LDAP_CNFieldName')),
+        ldap_idfieldname=str(os.getenv('LDAP_IDFieldName')),
+        ldap_uidfieldname=str(os.getenv('LDAP_UIDFieldName')),
+        ldap_bindfields=str(os.getenv('LDAP_bindFields')),
+        ldap_passwordpolicy=str(os.getenv('LDAP_passwordPolicy')),
+        ldap_isaddressbook=str(os.getenv('LDAP_isAddressBook')),
+        ldap_abdisplayname=str(os.getenv('LDAP_abaddressBookName'))
+    
 
 
 def read_dovecot_extra_conf():

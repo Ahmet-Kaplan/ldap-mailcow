@@ -191,7 +191,7 @@ def domain_exists( domain):
     else:
         return False
 
-def check_mailbox_all(config):
+def check_mailbox_all():
     api_host = str(os.getenv('API_HOST'))
     api_key = str(os.getenv('API_KEY'))
     url = f"{api_host}/api/v1/get/mailbox/all"
