@@ -322,6 +322,7 @@ def read_sogo_plist_ldap_template():
         ldap_passwordpolicy=str(os.getenv('LDAP_passwordPolicy')),
         ldap_isaddressbook=str(os.getenv('LDAP_isAddressBook')),
         ldap_abdisplayname=str(os.getenv('LDAP_abaddressBookName'))
+        )
     
 
 
