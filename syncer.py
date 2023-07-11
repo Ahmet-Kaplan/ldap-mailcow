@@ -91,15 +91,17 @@ def sync():
 
     ldap_results = ldap_connector.search_s(str(os.getenv('LDAP_BASE_DN')), ldap.SCOPE_SUBTREE,
                                            str(os.getenv('LDAP_FILTER')),
-                                           [str(os.getenv('LDAP_UIDFieldName')), str(os.getenv('LDAP_CNFieldName')), str(os.getenv('LDAP_active')), str(os.getenv('LDAP_mailQuota'))])
+                                           [str(os.getenv('LDAP_UIDFieldName')), str(os.getenv('LDAP_CNFieldName')), "mail", str(os.getenv('LDAP_active')), str(os.getenv('LDAP_mailQuota'))])
 
-    logging.info(f"LDAP Search Results:" + ldap_results)
+    logging.info(f"LDAP Search Results: ", ldap_results)
 
     ldap_results = map(lambda x: (
-          x[1][str(os.getenv('LDAP_UIDFieldName'))][0].decode(),
-          x[1][str(os.getenv('LDAP_CNFieldName'))][0].decode(),
-          False if not str_to_bool(x[1][str(os.getenv('LDAP_active'))][0]) else True,
-          x[1][str(os.getenv('LDAP_mailQuota'))][0].decode()),
+          x[1][os.getenv('LDAP_UIDFieldName')][0].decode(),
+          x[1][os.getenv('LDAP_CNFieldName')][0].decode(),
+          x[1]['mail'][0].decode(),
+          False,
+          "100000"),
+#          x[1][str(os.getenv('LDAP_mailQuota'))][0].decode()),
           ldap_results)
 
     # Geet all accounts info from Mailcow in 1 request
@@ -125,7 +127,7 @@ def sync():
 
     for ldap_item in ldap_results:
         dt_string = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        #print(dt_string, ": ", ldap_item)
+        print(dt_string, ": ", ldap_item)
         #sys.exit()
 
         try:
@@ -136,10 +138,11 @@ def sync():
             if os.getenv('MAIL_ACTIVE'): sendmail.send_email( f"An error occurred while iterating through the LDAP users.")
             return
 
-        ldap_email = ldap_item[0]
+        ldap_uid = ldap_item[0]
         ldap_name = ldap_item[1]
-        ldap_active = ldap_item[2]
-        ldap_quota = ldap_item[3]
+        ldap_email = ldap_item[2]
+        ldap_active = ldap_item[3]
+        ldap_quota = ldap_item[4]
 
         (db_user_exists, db_user_active) = filedb.check_user(ldap_email)
 
