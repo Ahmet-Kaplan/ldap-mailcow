@@ -7,9 +7,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-import syslog
-syslog.openlog(ident="Ldap-Mailcow",logoption=syslog.LOG_PID, facility=syslog.LOG_LOCAL0)
-
 def get_email_server():
     """Creates an instance of email server.
     Returns:
@@ -31,7 +28,7 @@ def get_email_server():
             server.login(str(os.getenv('MAIL_AUTH_USERNAME')), str(os.getenv('MAIL_AUTH_PASSWD')))
 
     except:
-        syslog.syslog (syslog.LOG_ERR, f"An error occurred while sending mail.")
+        logging.info( f"An error occurred while sending mail.")
         server.quit()
         return False
 
@@ -41,7 +38,7 @@ def get_email_server():
 def send_email(text):
     server = get_email_server()
     if not server:
-        syslog.syslog (syslog.LOG_ERR, f"Can't create mail server instance...")
+        logging.info( f"Can't create mail server instance...")
         return False
 
     msg = EmailMessage()
